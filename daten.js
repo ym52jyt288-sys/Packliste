@@ -4,7 +4,7 @@
 'use strict';
 
 // Versionsnummer, unten in den Einstellungen sichtbar. Bei jeder Änderung erhöhen – zusammen mit VERSION in sw.js.
-const APP_VERSION = 1;
+const APP_VERSION = 2;
 
 /* ============================================================
    Hilfsfunktionen

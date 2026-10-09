@@ -2,15 +2,16 @@
 
 ## Stand — 09.10.2026
 
-Runde 1 ist fertig und am Mac geprüft. **Noch nicht veröffentlicht**: GitHub-Repo und Cloudflare-Worker fehlen
-(siehe „Offen“). Ziel-Adresse: `https://ym52jyt288-sys.github.io/Packliste/`.
+**Online unter https://ym52jyt288-sys.github.io/Packliste/** (GitHub Pages, Repo `ym52jyt288-sys/Packliste`, Branch `main`).
+Sync-Server: `https://packliste-sync.56nr5tc89d.workers.dev` (Cloudflare-Konto des Nutzers, Worker `packliste-sync`,
+D1-Datenbank `packliste`). Prüfung auf dem iPhone durch den Nutzer steht noch aus. `APP_VERSION` / `sw.js` VERSION: 2.
 
 | Datei | Zweck |
 |---|---|
 | `index.html` | Gerüst, Meta-Tags, CSS (Tokens hell/dunkel, Akzent Reiseblau `#1f5f8b`) |
 | `katalog.js` | 10 Kategorien mit Linien-Icon, ≈1.570 Begriffe/Synonyme (`|` Synonym, `~` Falschschreibung) |
 | `daten.js` | Datenmodell, Speicher (`pl.`), `klassifiziere()`, Text-Import/-Export, Übernahme, Sicherung. **`APP_VERSION`** |
-| `sync.js` | Sync-Kern aus der Einkaufsliste, ein Raum pro Reise. **`SYNC_URL_STANDARD` noch leer** |
+| `sync.js` | Sync-Kern aus der Einkaufsliste, ein Raum pro Reise. `SYNC_URL_STANDARD` = Worker-Adresse |
 | `app.js` | Oberfläche: Start, Reise, Blätter, Wischen, Toasts, Einladen/Beitreten, Einstellungen |
 | `test.js` | Selbsttest (`index.html?test`), nur bei `?test` geladen |
 | `sw.js` | Offline-Cache. **Bei jeder Änderung `VERSION` erhöhen** (gleiche Zahl wie `APP_VERSION`) |
@@ -33,12 +34,11 @@ Runde 1 ist fertig und am Mac geprüft. **Noch nicht veröffentlicht**: GitHub-R
   `worker.js` mit D1-Nachbau. Einladen per Oberfläche, Beitreten per Link als „L.“, Übergabe-Banner kommt von selbst
   (10-s-Abgleich), Haken zurück, gleichzeitige Änderungen mit 409, Offline-Phase, Löschen, Server sieht keinen Klartext,
   „Für alle löschen“.
+- Echter Worker (09.10.2026): `curl` für 404, Anlegen, doppeltes Anlegen (409), Ändern, veralteter Stand (409),
+  `unveraendert`, Löschen, CORS für GitHub Pages; Zwei-Geräte-Test gegen den echten Worker **17/17** (die zwei
+  Server-Speicher-Prüfungen gehen nur lokal). Testräume wurden am Ende gelöscht.
 
 ### Offen
-- **Du**: leeres öffentliches Repo `Packliste` auf github.com anlegen, Pages einschalten (Branch `main`, Ordner `/`).
-  Danach pushe ich (vorher frage ich).
-- **Du**: Cloudflare-Worker `packliste-sync` + D1 `packliste` nach `server/ANLEITUNG.md`, Adresse an Claude →
-  `SYNC_URL_STANDARD`, dann `curl`-Prüfung und Zwei-Geräte-Test gegen den echten Worker (`WORKER=https://… node …`).
 - **Nur auf dem iPhone prüfbar**: Home-Bildschirm, Flugmodus, Wischen mit dem Finger, Datumsauswahl, echte Übergabe
   zwischen zwei iPhones, Einladung per Nachricht → „Einladung öffnen“ in der Home-Bildschirm-App.
 - Runde 2 (Komfort, noch nicht gebaut): automatisches Einladen über ein persönliches „Postfach“, Sicherungsschlüssel für ein

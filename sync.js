@@ -3,7 +3,7 @@
 // Neu: ein eigener Raum pro Reise. Der Schlüssel steckt nur in der Einladung (…/#r=<schlüssel>) und verlässt die Geräte nie.
 'use strict';
 
-const SYNC_URL_STANDARD = '';   // Worker-Adresse, siehe server/ANLEITUNG.md; zum Testen überschreibbar mit localStorage „pl.syncUrl“
+const SYNC_URL_STANDARD = 'https://packliste-sync.56nr5tc89d.workers.dev';   // Worker-Adresse, siehe server/ANLEITUNG.md; zum Testen überschreibbar mit localStorage „pl.syncUrl“
 const SYNC_URL = (() => { try { return localStorage.getItem('pl.syncUrl') || SYNC_URL_STANDARD; } catch (e) { return SYNC_URL_STANDARD; } })().replace(/\/+$/, '');
 const SYNC_LISTEN = ['personen', 'abschnitte', 'sachen'];      // Arrays mit id; „info“ ist ein Objekt mit Feldern
 const SYNC_GRABSTEIN_TAGE = 60;

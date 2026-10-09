@@ -18,7 +18,11 @@ try {
   };
   const A = await geraet('http://localhost:8766', 'Markus');
   const B = await geraet('http://127.0.0.1:8766', 'L.');
-  const sync = async (s, id) => s.js(`synchronisiere(${JSON.stringify(id)}).then(() => SYNCS.get(${JSON.stringify(id)})?.stand.version)`);
+  // Abgleich anstoßen und abwarten (läuft schon einer, erst dessen Ende abwarten, sonst wird nur „nochmal“ vorgemerkt)
+  const sync = async (s, id) => {
+    await s.warteAuf(`!SYNCS.get(${JSON.stringify(id)}) || !SYNCS.get(${JSON.stringify(id)}).laeuft`, 20000);
+    return s.js(`synchronisiere(${JSON.stringify(id)}).then(() => SYNCS.get(${JSON.stringify(id)})?.stand.version)`);
+  };
 
   // A legt die Reise an und lädt über die Oberfläche ein
   const idA = await A.js(`(() => { const r = neueReise({ name: 'Peru', personen: ['L.'] }); const [m, l] = r.personen;
@@ -86,6 +90,7 @@ try {
   await B.offline(false);
   await B.js(`dispatchEvent(new Event('online'))`);
   await B.warteAuf(`aktuelleReise().sachen.some(s => s.name === 'Powerbank')`, 8000);
+  await sync(B, idB);   // Bs Offline-Stand ist sicher oben
   await sync(A, idA);
   const namen = s => s.js(`aktuelleReise().sachen.map(x => x.name).sort()`);
   pruefe('Nach der Offline-Phase: beide haben alles', [await namen(A), await namen(B)].map(l => l.join(',')),
