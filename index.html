@@ -54,6 +54,7 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   [hidden] { display: none !important; }
   html, body { margin: 0; background: var(--bg); color: var(--fg); }
+  html { touch-action: manipulation; }   /* kein Warten auf Doppeltipp-Zoom */
   body {
     font: 17px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
     -webkit-text-size-adjust: 100%;
@@ -148,17 +149,19 @@
   .aktionen .ico { width: 20px; height: 20px; stroke-width: 2; }
   .item {
     position: relative; display: flex; align-items: center; gap: 10px; min-height: 52px; background: var(--bg);
-    touch-action: pan-y; transition: transform .22s ease;
+    touch-action: pan-y; transition: transform .22s ease, background-color .25s ease; cursor: pointer;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   }
   .item.zieht { transition: none; }
-  .check { width: 44px; height: 44px; margin-left: -10px; display: grid; place-items: center; flex: none; }
+  .item.gedrueckt { background-color: var(--bg2); transition: transform .22s ease; }
+  .check { width: 44px; min-height: 44px; align-self: stretch; margin-left: -10px; display: grid; place-items: center; flex: none; }
   .check span { width: 24px; height: 24px; border-radius: 50%; border: 1.7px solid var(--muted); display: grid; place-items: center; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
   .vielleicht .check span { border-style: dashed; }
   .gepackt .check span { background: var(--accent); border-color: var(--accent); border-style: solid; }
   .check:active span { transform: scale(.88); }
   .check svg { width: 14px; height: 14px; stroke: #fff; stroke-width: 2.6; fill: none; opacity: 0; stroke-linecap: round; stroke-linejoin: round; }
   .gepackt .check svg { opacity: 1; }
-  .item .txt { flex: 1; min-width: 0; padding: 9px 0; cursor: pointer; }
+  .item .txt { flex: 1; min-width: 0; padding: 9px 0; }
   .item .name { overflow-wrap: anywhere; }
   .item .menge { margin-left: 6px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 15px; white-space: nowrap; }
   .item .sub { display: block; font-size: 13px; color: var(--muted); margin-top: 1px; overflow-wrap: anywhere; }
@@ -268,8 +271,9 @@
     display: flex; align-items: flex-end; justify-content: center; opacity: 0; transition: opacity .2s ease;
   }
   .hinterlegt.offen { opacity: 1; }
+  .hinterlegt.schliesst { pointer-events: none; }   /* beim Ausblenden gehen Tipps schon an die Liste */
   .blatt {
-    width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: manipulation;
     background: var(--sheet); border-radius: 16px 16px 0 0; box-shadow: var(--schatten);
     padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
     transform: translateY(30px); transition: transform .22s ease;

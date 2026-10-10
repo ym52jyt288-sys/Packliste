@@ -1,10 +1,24 @@
 # Packliste – Plan und Stand
 
-## Stand — 09.10.2026
+## Stand — 10.10.2026
 
 **Online unter https://ym52jyt288-sys.github.io/Packliste/** (GitHub Pages, Repo `ym52jyt288-sys/Packliste`, Branch `main`).
 Sync-Server: `https://packliste-sync.56nr5tc89d.workers.dev` (Cloudflare-Konto des Nutzers, Worker `packliste-sync`,
-D1-Datenbank `packliste`). Prüfung auf dem iPhone durch den Nutzer steht noch aus. `APP_VERSION` / `sw.js` VERSION: 2.
+D1-Datenbank `packliste`). Prüfung auf dem iPhone durch den Nutzer steht noch aus. `APP_VERSION` / `sw.js` VERSION: 3.
+
+**Version 3 (10.10.2026): Tippen auf eine Sache öffnet das Detailblatt zuverlässig.** Vorher öffnete nur gut die Hälfte
+der Zeile das Blatt, ein Viertel reagierte gar nicht (Lücke neben dem Haken, Rand oben/unten, Avatar). Safari sucht bei
+einem Tipp ins Leere schräg links oben nach einem Ziel und traf dabei oft den Haken oder die Gruppe. Dazu kamen verschluckte
+Tipps. Behoben:
+- Die ganze Zeile ist die Tippfläche (`data-akt="details"` am `.item`), der Haken reicht über die volle Zeilenhöhe.
+- Der Klick-Handler hängt an `#kopf`, `#main` und `#unten` statt am `document`. So gilt für Safari die Liste als stabiles
+  Tippziel, das beim Neuzeichnen bestehen bleibt.
+- Neuzeichnen aus dem Hintergrund (Abgleich, Umsortieren nach dem Haken, Blatt zu) wartet, bis der Finger 300 ms weg ist
+  (`renderInRuhe()`). Der Kopf schreibt beim 10-s-Abgleich nur Geändertes (`setzeHTML()`).
+- Eine aufgewischte Zeile bleibt nach dem Neuzeichnen offen. Vorher war sie unsichtbar zu und schluckte den nächsten Tipp.
+- Ein Blatt nimmt beim Ausblenden keine Tipps mehr an. Die nächste Sache lässt sich sofort antippen.
+- `touch-action: manipulation` (kein Warten auf Doppeltipp), Zeilentext nicht markierbar (längeres Drücken bleibt ein
+  Tipp), Zeile leuchtet beim Antippen kurz auf.
 
 | Datei | Zweck |
 |---|---|
@@ -18,10 +32,13 @@ D1-Datenbank `packliste`). Prüfung auf dem iPhone durch den Nutzer steht noch a
 | `manifest.webmanifest`, `icon.svg` → `icon-180.png`, `icon-512.png` | Home-Bildschirm (PNGs mit `werkzeuge/icons.mjs`) |
 | `vendor/qrcode.min.js` | qrcode-generator 1.4.4 (aus der Einkaufsliste), Einladungs-QR-Code |
 | `server/` | `worker.js` (Cloudflare Worker, D1-Bindung `DB`, Tabelle `reise`), `schema.sql`, `ANLEITUNG.md` |
-| `werkzeuge/` | `server.mjs` (App :8766 + echter worker.js mit D1-Nachbau :8767), `chrome.mjs` (Headless Chrome per CDP), `selbsttest.mjs`, `rundgang.mjs` (Screenshots), `zwei-geraete.mjs`, `icons.mjs` |
+| `werkzeuge/` | `server.mjs` (App :8766 + echter worker.js mit D1-Nachbau :8767), `chrome.mjs` (Headless Chrome per CDP), `selbsttest.mjs`, `rundgang.mjs` (Screenshots), `zwei-geraete.mjs`, `tippen.mjs` (Antippen per Touch), `icons.mjs` |
 | `privat/` | Deine Beispiellisten zum Testen. **Nicht im Repo** (`.gitignore`) |
 
 ### Geprüft (Mac, Headless Chrome 150)
+- Tipp-Test **24/24** (`werkzeuge/tippen.mjs`, Version 3): Ränder, Lücke und Avatar öffnen das Detailblatt, Haken über die
+  volle Höhe, kein Neuzeichnen unter dem Finger, offene Wisch-Zeile, Tipp während ein Blatt ausblendet, Aufleuchten.
+  Gegenprobe mit Version 2: 8 von 13 dieser Prüfungen scheitern dort.
 - Selbsttest **211/211**: alle ≈70 Sachen der drei Beispiellisten in der erwarteten Kategorie, Tippfehler, zusammengesetzte
   Wörter, Korrektur vor Katalog, Lernen aus früheren Reisen, Mengen, Mehrfacheingabe, Bewertung aus „Anm.: …“,
   Text-Import in allen drei Formaten, Export → Import, Übernahme (Doppelte, Verlauf, „nie“-Filter, Personen über den Namen),
@@ -39,7 +56,7 @@ D1-Datenbank `packliste`). Prüfung auf dem iPhone durch den Nutzer steht noch a
   Server-Speicher-Prüfungen gehen nur lokal). Testräume wurden am Ende gelöscht.
 
 ### Offen
-- **Nur auf dem iPhone prüfbar**: Home-Bildschirm, Flugmodus, Wischen mit dem Finger, Datumsauswahl, echte Übergabe
+- **Nur auf dem iPhone prüfbar**: Antippen der Sachen (Version 3), Home-Bildschirm, Flugmodus, Wischen mit dem Finger, Datumsauswahl, echte Übergabe
   zwischen zwei iPhones, Einladung per Nachricht → „Einladung öffnen“ in der Home-Bildschirm-App.
 - Runde 2 (Komfort, noch nicht gebaut): automatisches Einladen über ein persönliches „Postfach“, Sicherungsschlüssel für ein
   neues iPhone, QR-Scan in der App (zxing), mehrere Sachen auf einmal übergeben.
@@ -58,6 +75,7 @@ node werkzeuge/server.mjs &                                   # App :8766, Worke
 node --experimental-websocket werkzeuge/selbsttest.mjs        # Test n/m
 node --experimental-websocket werkzeuge/rundgang.mjs <ordner> # Screenshots 390 px
 node --experimental-websocket werkzeuge/zwei-geraete.mjs      # WORKER=https://… für den echten Worker
+node --experimental-websocket werkzeuge/tippen.mjs            # Antippen mit Touch-Ereignissen
 ```
 
 ---

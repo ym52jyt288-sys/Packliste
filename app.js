@@ -128,6 +128,30 @@ function render() {
   if (UI.seite === 'reise') renderReise(r); else renderStart();
 }
 
+/* Tipps nicht verschlucken: iOS verwirft einen Tipp, wenn das Element unter dem Finger zwischen Berühren und Loslassen
+   ersetzt wird. Neuzeichnen aus dem Hintergrund (Abgleich, Umsortieren nach dem Haken, Blatt zu) wartet deshalb,
+   bis der Finger kurz weg ist. */
+const FINGER = { auf: 0, seit: 0, weg: 0 };
+document.addEventListener('touchstart', e => { FINGER.auf = e.touches.length; FINGER.seit = Date.now(); }, { capture: true, passive: true });
+for (const typ of ['touchend', 'touchcancel']) document.addEventListener(typ, e => { FINGER.auf = e.touches.length; FINGER.weg = Date.now(); }, { capture: true, passive: true });
+const fingerFrei = () => (!FINGER.auf || Date.now() - FINGER.seit > 4000) && Date.now() - FINGER.weg > 300;
+let renderWartet = false;
+function renderInRuhe() {
+  if (renderWartet) return;
+  renderWartet = true;
+  (function versuche() {
+    if (!fingerFrei()) return setTimeout(versuche, 100);
+    renderWartet = false;
+    render();
+  })();
+}
+// Nur schreiben, wenn sich etwas ändert (der Kopf wird bei jedem Abgleich aktualisiert)
+function setzeHTML(el, html) {
+  if (el._html === html) return;
+  el.innerHTML = html;
+  el._html = html;
+}
+
 /* ---------- Start: Reisen ---------- */
 
 const nachStart = (a, b) => {
@@ -236,15 +260,15 @@ function waehlePerson(r) {
 function aktualisiereKopf(r) {
   if (!r || $('#kopf').dataset.kopf !== r.id) return;
   const sub = [datumBereich(r.info.start, r.info.ende), countdownText(r)].filter(Boolean).join(' · ') || mehrzahl(r.sachen.length, 'Sache', 'Sachen');
-  $('#kTitel').innerHTML = `<h1>${esc(r.info.name)}</h1><small>${esc(sub)}</small>`;
+  setzeHTML($('#kTitel'), `<h1>${esc(r.info.name)}</h1><small>${esc(sub)}</small>`);
   const sy = SYNCS.get(r.id);
-  $('#kEinladen').innerHTML = sy ? ICON.gemeinsam + (sy.online && !sy.fehler ? '<span class="punkt-an"></span>' : '') : ICON.einladen;
+  setzeHTML($('#kEinladen'), sy ? ICON.gemeinsam + (sy.online && !sy.fehler ? '<span class="punkt-an"></span>' : '') : ICON.einladen);
   const personen = personenSortiert(r);
-  $('#kPersonen').innerHTML = personen.length > 1 ? `<div class="segment personen" role="tablist">${personen.map(p => {
+  setzeHTML($('#kPersonen'), personen.length > 1 ? `<div class="segment personen" role="tablist">${personen.map(p => {
     const f = fortschritt(r, p.id);
     return `<button type="button" role="tab" data-akt="person" data-person="${p.id}" class="${UI.person === p.id ? 'an' : ''}" aria-selected="${UI.person === p.id}">
       ${avatarHTML(p, 'klein')}${personen.length <= 3 ? `<span class="seg-name">${esc(p.name)}</span>` : ''}<span class="zahl">${f.gepackt}/${f.gesamt}</span></button>`;
-  }).join('')}<button type="button" role="tab" data-akt="person" data-person="alle" class="${UI.person === 'alle' ? 'an' : ''}" aria-selected="${UI.person === 'alle'}">Alle</button></div>` : '';
+  }).join('')}<button type="button" role="tab" data-akt="person" data-person="alle" class="${UI.person === 'alle' ? 'an' : ''}" aria-selected="${UI.person === 'alle'}">Alle</button></div>` : '');
   $('#formEingabe').hidden = UI.auswerten;
   if (UI.auswerten) $('#vorschlaege').hidden = true;
   const wahl = $('#kAbschnitt');
@@ -252,10 +276,10 @@ function aktualisiereKopf(r) {
     if (!abschnittVon(r, UI.abschnitt[r.id]) && UI.abschnitt[r.id] !== '') UI.abschnitt[r.id] = abschnitteSortiert(r)[0].id;
     const a = abschnittVon(r, UI.abschnitt[r.id]);
     wahl.hidden = false;
-    wahl.innerHTML = `<span>${esc(a ? a.name : 'Ohne Abschnitt')}</span>${svg('<path d="M6 9l6 6 6-6"/>')}
+    setzeHTML(wahl, `<span>${esc(a ? a.name : 'Ohne Abschnitt')}</span>${svg('<path d="M6 9l6 6 6-6"/>')}
       <select id="abschnittSelect" aria-label="Abschnitt für neue Sachen">${abschnitteSortiert(r).map(x => `<option value="${x.id}"${a && x.id === a.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}
-      <option value=""${a ? '' : ' selected'}>Ohne Abschnitt</option></select>`;
-  } else { wahl.hidden = true; wahl.innerHTML = ''; }
+      <option value=""${a ? '' : ' selected'}>Ohne Abschnitt</option></select>`);
+  } else { wahl.hidden = true; setzeHTML(wahl, ''); }
   const f = fortschritt(r, UI.person === 'alle' ? undefined : UI.person);
   const balken = $('#kFortschritt');
   balken.classList.toggle('fertig', f.gesamt > 0 && f.gepackt === f.gesamt);
@@ -340,6 +364,10 @@ function renderReise(r) {
     else if (!html.includes('<section')) html += '<div class="leer">Alles gepackt.</div>';
   }
   $('#main').innerHTML = html;
+  // Eine aufgewischte Zeile bleibt offen. Sonst wäre sie unsichtbar zu und der nächste Tipp ginge ins Leere.
+  const offen = UI.geoeffnet && !UI.auswerten && $(`.zeile[data-id="${UI.geoeffnet}"] .item`);
+  if (offen) { offen.classList.add('zieht'); offen.style.transform = `translateX(${-WISCH_BREITE}px)`; void offen.offsetWidth; offen.classList.remove('zieht'); }
+  else UI.geoeffnet = null;
 
   const unten = $('#unten');
   if (UI.auswerten) {
@@ -364,9 +392,9 @@ function zeileHTML(r, s, { art, mitPerson }) {
   return `<li class="zeile" data-id="${s.id}">
     ${UI.auswerten ? '' : `<div class="aktionen" aria-hidden="true"><button type="button" data-akt="uebergeben" tabindex="-1">${ICON.uebergeben}Übergeben</button>
       <button type="button" class="loeschen" data-akt="loeschen" tabindex="-1">${ICON.papierkorb}Löschen</button></div>`}
-    <div class="item${s.gepackt ? ' gepackt' : ''}${s.vielleicht ? ' vielleicht' : ''}">
+    <div class="item${s.gepackt ? ' gepackt' : ''}${s.vielleicht ? ' vielleicht' : ''}" data-akt="details">
       ${UI.auswerten ? '' : `<button type="button" class="check" data-akt="packen" aria-pressed="${s.gepackt}" aria-label="${esc(s.name)} ${s.gepackt ? 'gepackt' : 'packen'}"><span>${ICON.haken}</span></button>`}
-      <div class="txt" data-akt="details"><span class="name">${esc(s.name)}</span>${s.menge ? `<span class="menge">×${s.menge}</span>` : ''}${s.vielleicht ? '<span class="marke">vielleicht</span>' : ''}${neu ? `<span class="marke neu">von ${esc(neu.name)}</span>` : ''}${sub.length ? `<span class="sub">${sub.join(' · ')}</span>` : ''}</div>
+      <div class="txt"><span class="name">${esc(s.name)}</span>${s.menge ? `<span class="menge">×${s.menge}</span>` : ''}${s.vielleicht ? '<span class="marke">vielleicht</span>' : ''}${neu ? `<span class="marke neu">von ${esc(neu.name)}</span>` : ''}${sub.length ? `<span class="sub">${sub.join(' · ')}</span>` : ''}</div>
       ${rechts}
     </div></li>`;
 }
@@ -412,6 +440,7 @@ function oeffneBlatt(html, { voll = false } = {}) {
 function schliesseBlatt(hint) {
   if (!hint || !hint.isConnected || hint._zu) return;
   hint._zu = true;
+  hint.classList.add('schliesst');
   if (document.activeElement && hint.contains(document.activeElement)) document.activeElement.blur();
   hint.classList.remove('offen');
   setTimeout(() => {
@@ -532,7 +561,10 @@ document.addEventListener('pointerdown', e => { if (e.target.closest('[data-vors
    Aktionen (ein Klick-Handler für die Seite; Blätter haben eigene)
    ============================================================ */
 
-document.addEventListener('click', e => {
+// Am Kopf, an der Liste und unten statt am document: So gilt auf dem iPhone die ganze Fläche als Tippziel.
+// Safari lenkt einen Tipp auf eine Zeile dann nicht auf einen Knopf daneben um und verliert ihn nicht, wenn die Liste
+// währenddessen neu gezeichnet wird (das Tippziel #main bleibt bestehen).
+function beiKlick(e) {
   if (e.target.closest('.hinterlegt') || e.target.closest('.toast')) return;
   if (e.target.closest('a')) return;
   const zeile = e.target.closest('.zeile');
@@ -605,7 +637,8 @@ document.addEventListener('click', e => {
     case 'ergaenzen': return oeffneUebernehmenWahl(r);
     case 'textEinfuegen': return oeffneTextEinfuegen(r);
   }
-});
+}
+for (const el of [$('#kopf'), $('#main'), $('#unten')]) el.addEventListener('click', beiKlick);
 
 function packen(r, s, el) {
   s.gepackt = !s.gepackt;
@@ -615,7 +648,7 @@ function packen(r, s, el) {
   sichereReise(r);
   aktualisiereKopf(r);
   clearTimeout(UI.renderZeit);
-  UI.renderZeit = setTimeout(() => { if (aktuelleReise() === r) render(); }, 450);
+  UI.renderZeit = setTimeout(() => { if (aktuelleReise() === r) renderInRuhe(); }, 450);
   if (s.gepackt && UI.person !== 'alle') {
     const f = fortschritt(r, UI.person);
     if (f.gesamt > 1 && f.gepackt === f.gesamt) zeigeToast('Alles gepackt – gute Reise!');
@@ -640,21 +673,28 @@ function schliesseWisch() {
   UI.geoeffnet = null;
 }
 (function wischen() {
-  let st = null;
+  let st = null, druck = null;
   const main = $('#main');
+  // Zeile leuchtet beim Antippen auf, wie in iOS-Listen: leicht verzögert, damit Scrollen sie nicht aufleuchten lässt
+  const druckAus = () => { if (!druck) return; clearTimeout(druck.zeit); druck.item.classList.remove('gedrueckt'); druck = null; };
   main.addEventListener('touchstart', e => {
+    druckAus();
     const item = e.target.closest('.item');
-    if (!item || e.touches.length > 1 || UI.auswerten || !item.closest('.zeile')) { st = null; return; }
+    if (!item || e.touches.length > 1 || !item.closest('.zeile')) { st = null; return; }
     const zeile = item.closest('.zeile');
     const offen = UI.geoeffnet === zeile.dataset.id;
     st = { x: e.touches[0].clientX, y: e.touches[0].clientY, item, zeile, basis: offen ? -WISCH_BREITE : 0, pos: 0, aktiv: false };
+    // nicht auf Knöpfen und Links in der Zeile und nicht, wenn der Tipp nur eine offene Zeile schließt
+    if (!e.target.closest('button, a') && !UI.geoeffnet) druck = { item, zeit: setTimeout(() => item.classList.add('gedrueckt'), 90) };
   }, { passive: true });
   main.addEventListener('touchmove', e => {
     if (!st) return;
     const dx = e.touches[0].clientX - st.x, dy = e.touches[0].clientY - st.y;
     if (!st.aktiv) {
-      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { st = null; return; }
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { druckAus(); st = null; return; }
       if (Math.abs(dx) < 10) return;
+      druckAus();
+      if (UI.auswerten) { st = null; return; }
       st.aktiv = true;
       if (UI.geoeffnet && UI.geoeffnet !== st.zeile.dataset.id) schliesseWisch();
       st.item.classList.add('zieht');
@@ -662,7 +702,13 @@ function schliesseWisch() {
     st.pos = Math.max(-WISCH_BREITE - 40, Math.min(0, st.basis + dx));
     st.item.style.transform = `translateX(${st.pos}px)`;
   }, { passive: true });
-  const ende = () => {
+  const ende = e => {
+    if (druck && e.type === 'touchend') {   // kurzer Tipp: kurz aufleuchten lassen, auch wenn die Verzögerung noch lief
+      const it = druck.item;
+      clearTimeout(druck.zeit); druck = null;
+      it.classList.add('gedrueckt');
+      setTimeout(() => it.classList.remove('gedrueckt'), 160);
+    } else druckAus();
     if (!st) return;
     const { item, zeile, pos, aktiv } = st;
     st = null;
@@ -744,7 +790,7 @@ function oeffneSache(r, s) {
   const ueb = $('#sUebergeben', b);
   if (ueb) ueb.addEventListener('click', () => { schliesseBlatt(b); setTimeout(() => oeffneUebergeben(r, s), 220); });
   $('#sLoeschen', b).addEventListener('click', () => { b._beimSchliessen = null; schliesseBlatt(b); loescheSache(r, s); });
-  b._beimSchliessen = () => { s.notiz = (s.notiz || '').trim(); speichern(); render(); };
+  b._beimSchliessen = () => { s.notiz = (s.notiz || '').trim(); speichern(); renderInRuhe(); };
 }
 
 function oeffneKategorieWahl(r, s, nachher) {
@@ -935,7 +981,7 @@ function oeffneReiseBearbeiten(r) {
     if (k.dataset.hoch) verschiebe(k.dataset.hoch, -1);
     if (k.dataset.runter) verschiebe(k.dataset.runter, 1);
   });
-  b._beimSchliessen = () => { speichern(); render(); };
+  b._beimSchliessen = () => { speichern(); renderInRuhe(); };
 }
 
 /* ============================================================
@@ -1260,7 +1306,7 @@ function oeffneEinladen(r) {
   zeige();
   const beiSync = e => { if (e.detail.id === r.id && b.isConnected && !blatt.querySelector('input:focus')) zeige(); };
   document.addEventListener('sync', beiSync);
-  b._beimSchliessen = () => { document.removeEventListener('sync', beiSync); render(); };
+  b._beimSchliessen = () => { document.removeEventListener('sync', beiSync); renderInRuhe(); };
   blatt.addEventListener('click', async e => {
     const k = e.target.closest('button');
     if (!k) return;
@@ -1458,7 +1504,7 @@ function oeffneEinstellungen() {
     if (k.id === 'eEinladung') { schliesseBlatt(b); return setTimeout(oeffneEinladungEinfuegen, 220); }
     if (k.id === 'eExport') return exportieren();
   });
-  b._beimSchliessen = () => render();
+  b._beimSchliessen = () => renderInRuhe();
 }
 
 async function exportieren() {
@@ -1499,8 +1545,8 @@ if (new URLSearchParams(location.search).has('test')) {
   starteSyncZeitgeber(() => UI.seite === 'reise' ? UI.reiseId : null);
   document.addEventListener('sync', e => {
     const { id, geaendert } = e.detail || {};
-    if (UI.seite === 'reise' && UI.reiseId === id) { if (geaendert) render(); else aktualisiereKopf(aktuelleReise()); }
-    else if (UI.seite === 'start' && geaendert) render();
+    if (UI.seite === 'reise' && UI.reiseId === id) { if (geaendert) renderInRuhe(); else aktualisiereKopf(aktuelleReise()); }
+    else if (UI.seite === 'start' && geaendert) renderInRuhe();
   });
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

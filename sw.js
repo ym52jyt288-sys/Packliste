@@ -1,6 +1,6 @@
 // Service Worker: hält die Packliste offline verfügbar (Flugzeug, Berghütte, Funkloch).
 // Bei jeder Änderung an den Dateien VERSION erhöhen, damit das iPhone die neue Fassung lädt (gleiche Zahl wie APP_VERSION in daten.js).
-const VERSION = 'packliste-2';
+const VERSION = 'packliste-3';
 const DATEIEN = ['./', 'index.html', 'katalog.js', 'daten.js', 'sync.js', 'app.js', 'vendor/qrcode.min.js', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
